@@ -170,21 +170,21 @@ ORDER BY
     
 # Task 10 - Fraud Detection: Highlight potential fraud by identifying mismatches between customer address locations and transaction IP locations. Advanced
 
-SELECT 
+SELECT
     t.transaction_id,
     t.customer_id,
     c.address,
     t.ip_location,
     t.transaction_date,
     t.transaction_amount
-FROM 
-    transaction_table t
-JOIN 
-    customer_table c ON t.customer_id = c.customer_id
-WHERE 
-    LOWER(TRIM(c.address)) NOT LIKE CONCAT('%', LOWER(TRIM(t.ip_location)), '%')
-ORDER BY 
-    t.transaction_date DESC;
+FROM transaction_table t
+JOIN customer_table c
+    ON t.customer_id = c.customer_id
+WHERE
+    c.address IS NOT NULL
+    AND t.ip_location IS NOT NULL
+    AND LOWER(c.address) NOT LIKE CONCAT('%', LOWER(t.ip_location), '%')
+ORDER BY t.transaction_date DESC;
 
 # Task 11 - Repayment History Analysis: Rank loans by repayment performance using window functions.
 
@@ -256,21 +256,21 @@ LIMIT 10;  -- Adjust this to get more or fewer top regions
 
 # Task 14 - Early Repayment Patterns: Detect loans with frequent early repayments and their impact on revenue
 
-SELECT 
-    l.loan_id, 
-    l.customer_id, 
-    l.loan_amount, 
-    l.due_date, 
-    r.payment_date, 
-    r.payment_amount,
-    CASE 
-        WHEN r.payment_date < l.due_date THEN 'Early Repayment'
-        ELSE 'On-Time or Late Repayment'
+SELECT
+    l.loan_id,
+    l.customer_id,
+    l.loan_amount,
+    t.transaction_date,
+    t.transaction_amount,
+    t.transaction_type,
+    CASE
+        WHEN t.transaction_type = 'Prepayment' THEN 'Early Repayment'
+        WHEN t.transaction_type = 'EMI Payment' THEN 'Regular Repayment'
+        WHEN t.transaction_type = 'Missed EMI'  THEN 'Missed Payment'
+        ELSE 'Other'
     END AS repayment_status
-FROM loans_table l
-JOIN repayments_table r ON l.loan_id = r.loan_id
-WHERE r.payment_date < l.due_date
-ORDER BY l.customer_id, r.payment_date;
-
-# Task 15 - Feedback Correlation: Correlate customer feedback sentiment scores with loan statuses
-
+FROM loan_table l
+JOIN transaction_table t
+    ON l.loan_id = t.loan_id
+WHERE t.transaction_type IN ('EMI Payment', 'Prepayment', 'Missed EMI')
+ORDER BY l.customer_id, t.transaction_date;
